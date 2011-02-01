@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.sf-videoportal"
+       name="SF Videoportal"
+       version="0.1.0"
+       provider-name="Andreas Wetzel [xbmc@mindmade.org]">
+  <requires>
+    <import addon="xbmc.python" version="1.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource"
+            library="videoportal.py">
+        <provides>video</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <platform>all</platform>
+    <summary>SF Videoportal</summary>
+    <description>Dieses Plug-in bietet den Zugriff auf die Inhalte auf dem SF Videoportal (http://videoportal.sf.tv/). Verfügbar sind die meisten deutschen Eigenproduktionen des Schweizer Fernsehens.</description>
+  </extension>
+</addon>
