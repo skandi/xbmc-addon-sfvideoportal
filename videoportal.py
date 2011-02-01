@@ -83,7 +83,7 @@ def getThumbnailForId( id):
 	thumb = BASE_URL + "/cvis/videogroup/thumbnail/" + id + "?width=200"
 	return thumb
 
-def addDirectoryItem( type, name, parameters={}, image="", summary=""):
+def addDirectoryItem( type, name, parameters={}, image="", total=0):
 	'''Add a list item to the XBMC UI.'''
 	if (type == ITEM_TYPE_FOLDER):
 		img = "DefaultFolder.png"
@@ -95,12 +95,11 @@ def addDirectoryItem( type, name, parameters={}, image="", summary=""):
 	if (type == ITEM_TYPE_VIDEO):
 		li.setProperty( "IsPlayable", "true")
 		li.setProperty( "Video", "true")
-		li.setInfo( 'video', { "plot": summary})
 		url = parameters["url"]
 	else:        
 		url = sys.argv[0] + '?' + urllib.urlencode(parameters)
     
-	return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder = (type == ITEM_TYPE_FOLDER))
+	return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder = (type == ITEM_TYPE_FOLDER), totalItems=total)
 
 
 #
@@ -147,17 +146,12 @@ def show_sendungen():
 def show_sendung( params):
 	url = params.get( PARAMETER_KEY_URL)
 	html = getHttpResponse( url)
-	match = re.compile( '<div class="act_sendung_info">.+?href="(.+?)".+?<img src="(.+?)".+?sendungsuebersicht">(.+?)</a>').findall( html)
-	for url, thumb, title in match:
+	match1 = re.compile( '<div class="act_sendung_info">.+?href="(.+?)".+?<img src="(.+?)".+?sendungsuebersicht">(.+?)</a>').findall( html)
+	match2 = re.compile( '<div class="left_innner_column"><a href="(.+?)".+?<img class="thumbnail" src="(.+?)".+?<strong>(.+?)</strong>').findall( html)
+	for url, thumb, title in match1 + match2:
 		id = getIdFromUrl( url)
 		url = getVideoForId( id)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb)
-
-	match = re.compile( '<div class="left_innner_column"><a href="(.+?)".+?<img class="thumbnail" src="(.+?)".+?<strong>(.+?)</strong>').findall( html)
-	for url, thumb, title in match:
-		id = getIdFromUrl( url)
-		url = getVideoForId( id)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb)
+		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( match1) + len( match2))
 
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
@@ -183,7 +177,7 @@ def show_verpasst_detail( params):
 		title = "%s, %s" % (time, name)
 		url = getVideoForId( id)
 		thumb = getThumbnailForId( thumbid)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb)
+		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( match))
 	
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
