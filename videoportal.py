@@ -45,10 +45,14 @@ entitydict = { "E4": u"\xE4", "F6": u"\xF6", "FC": u"\xFC",
                "C4": u"\xE4", "D6": u"\xF6", "DC": u"\xDC",
                "2013": u"\u2013"}
 def htmldecode( s):
-	h = HTMLParser.HTMLParser()
-	s = h.unescape( s)
-	for k in entitydict.keys():
-		s = s.replace( "&#x" + k + ";", entitydict[k])
+	try:
+		h = HTMLParser.HTMLParser()
+		s = h.unescape( s)
+		for k in entitydict.keys():
+			s = s.replace( "&#x" + k + ";", entitydict[k])
+	except UnicodeDecodeError:
+		pass
+		
 	return s
 
 
