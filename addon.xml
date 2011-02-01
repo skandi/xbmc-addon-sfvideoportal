@@ -13,6 +13,6 @@
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
     <summary>SF Videoportal</summary>
-    <description>Dieses Plug-in bietet den Zugriff auf die Inhalte auf dem SF Videoportal (http://videoportal.sf.tv/). Verfügbar sind die meisten deutschen Eigenproduktionen des Schweizer Fernsehens.</description>
+    <description>This plug-in allows access to the content of the SF Videoportal (http://videoportal.sf.tv/). Many of the productions in German of the Swiss national TV station are available.</description>
   </extension>
 </addon>
