@@ -1,7 +1,7 @@
 
 import re, sys
 import urllib, urllib2, HTMLParser
-import xbmcgui, xbmcplugin
+import xbmcgui, xbmcplugin, xbmcaddon
 
 #
 # constants definition
@@ -20,6 +20,8 @@ PARAMETER_KEY_URL = "url"
 ITEM_TYPE_FOLDER, ITEM_TYPE_VIDEO = range(2)
 BASE_URL = "http://www.videoportal.sf.tv"
 FLASH_PLAYER = "http://www.videoportal.sf.tv/flash/videoplayer.swf"
+
+settings = xbmcaddon.Addon( id="plugin.video.sf-videoportal")
 
 #
 # utility functions
@@ -61,22 +63,17 @@ def getIdFromUrl( url):
 
 
 def parseJSON( json):
-	streams = re.compile( '{"codec_video":"(.+?)".+?"frame_width":([0-9]+).+?"url":"(.+?)".+?}').findall( json)
-	for codec, width, url in streams:
-		if (codec == "h264"):
-			return url.replace("\\/", "/");
-	return url
+	streams = re.compile( '{"codec_video":"(.+?)".+?"bitrate":([0-9]+).+?"url":"(.+?)"}').findall( json)
+	sortedstreams = sorted( streams, key=lambda el: int(el[1]))
+	codec, bitrate, url = sortedstreams[ int(settings.getSetting( "quality"))]
+	return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true";
 
 
 def getVideoForId( id):
 	json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
 	json = getHttpResponse( json_url)
 
-	streams = re.compile( '{"codec_video":"(.+?)".+?"frame_width":([0-9]+).+?"url":"(.+?)".+?}').findall( json)
-	for codec, width, url in streams:
-		if (codec == "h264"):
-			return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true";
-	return None
+	return parseJSON( json)
 
 
 def getThumbnailForId( id):

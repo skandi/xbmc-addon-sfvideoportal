@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+
+  <!-- General -->
+  <category label="30100">
+    <setting id="quality" type="enum" label="30110" values="Low (120 kbit/s)|Medium (744 kbit/s)|High (1400 kbit/s)" default="2" />
+  </category>
+
+</settings>
