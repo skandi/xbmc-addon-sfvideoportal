@@ -148,6 +148,7 @@ def show_sendung( params):
 	for url, thumb, title in match1 + match2:
 		id = getIdFromUrl( url)
 		url = getVideoForId( id)
+		thumb = re.sub( '\?width=[0-9]+', '?width=200', thumb)
 		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( match1) + len( match2))
 
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
