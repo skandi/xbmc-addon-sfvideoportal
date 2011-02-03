@@ -2,6 +2,7 @@
 import re, sys
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
+from BeautifulSoup import BeautifulSoup
 
 #
 # constants definition
@@ -139,17 +140,30 @@ def show_sendungen():
 
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
-
 def show_sendung( params):
 	url = params.get( PARAMETER_KEY_URL)
-	html = getHttpResponse( url)
-	match1 = re.compile( '<div class="act_sendung_info">.+?href="(.+?)".+?<img src="(.+?)".+?sendungsuebersicht">(.+?)</a>').findall( html)
-	match2 = re.compile( '<div class="left_innner_column"><a href="(.+?)".+?<img class="thumbnail" src="(.+?)".+?<strong>(.+?)</strong>').findall( html)
-	for url, thumb, title in match1 + match2:
-		id = getIdFromUrl( url)
+	soup = BeautifulSoup( getHttpResponse( url))
+
+	# current show
+	show = soup.find( "div", "act_sendung_info")
+	a = show.find( "a", { "class": None})
+	title = a.string
+	id = getIdFromUrl( a['href'])
+	url = getVideoForId( id)
+	thumb = re.sub( '\?width=\d+', '?width=200', show.find( "a").img['src'])
+	addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb)
+
+	# previous shows
+	previous = soup.find( "div", "prev_sendungen")
+	shows = previous.findAll( "div", "comment_row")
+	for show in shows:
+		a = show.find( "a", "sendung_title")
+		title = a.strong.string
+		id = getIdFromUrl( a['href'])
 		url = getVideoForId( id)
-		thumb = re.sub( '\?width=[0-9]+', '?width=200', thumb)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( match1) + len( match2))
+		thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "a").img['src'])
+		
+		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( shows) + 1)
 
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
