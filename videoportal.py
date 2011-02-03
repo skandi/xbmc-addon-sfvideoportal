@@ -1,5 +1,5 @@
 
-import re, sys
+import os, re, sys
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
 from BeautifulSoup import BeautifulSoup
@@ -12,7 +12,7 @@ from BeautifulSoup import BeautifulSoup
 pluginhandle = int(sys.argv[1])
 
 # plugin modes
-MODE_SENDUNGEN, MODE_SENDUNG, MODE_VERPASST, MODE_VERPASST_DETAIL = range(4)
+MODE_SENDUNGEN, MODE_SENDUNG, MODE_SENDUNG_PREV, MODE_VERPASST, MODE_VERPASST_DETAIL = range(5)
 
 # parameter keys
 PARAMETER_KEY_MODE = "mode"
@@ -23,6 +23,9 @@ BASE_URL = "http://www.videoportal.sf.tv"
 FLASH_PLAYER = "http://www.videoportal.sf.tv/flash/videoplayer.swf"
 
 settings = xbmcaddon.Addon( id="plugin.video.sf-videoportal")
+
+LIST_FILE = os.path.join( os.getcwd(), "resources", "list.dat")
+listItems = []
 
 #
 # utility functions
@@ -66,7 +69,10 @@ def getIdFromUrl( url):
 def parseJSON( json):
 	streams = re.compile( '{"codec_video":"(.+?)".+?"bitrate":([0-9]+).+?"url":"(.+?)"}').findall( json)
 	sortedstreams = sorted( streams, key=lambda el: int(el[1]))
-	codec, bitrate, url = sortedstreams[ int(settings.getSetting( "quality"))]
+	quality = int(settings.getSetting( "quality"))
+	if (quality >= len(sortedstreams)):
+		quality = len(sortedstreams)-1;
+	codec, bitrate, url = sortedstreams[ quality]
 	return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true";
 
 
@@ -94,6 +100,8 @@ def addDirectoryItem( type, name, parameters={}, image="", total=0):
 		li.setProperty( "IsPlayable", "true")
 		li.setProperty( "Video", "true")
 		url = parameters["url"]
+		global listItems
+		listItems.append( (name, parameters, image))
 	else:        
 		url = sys.argv[0] + '?' + urllib.urlencode(parameters)
     
@@ -116,6 +124,64 @@ def getHttpResponse( url):
 	responsetext = unicode( response.read(), encoding[0] );
 	response.close()
 	return responsetext.encode("utf-8")
+
+import os, pickle
+
+def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
+	global listItems
+	doAppend = (alreadylisted==0)
+	listed=0;
+	if doAppend:
+		items=pickle.load( file( LIST_FILE, "r"))
+		for item in items:
+			title, params, thumb = item
+			addDirectoryItem( ITEM_TYPE_VIDEO, title, params, thumb)
+			listed = listed+1
+
+	previous = soup.find( "div", "prev_sendungen")
+	shows = previous.findAll( "div", "comment_row")
+	for show in shows:
+		a = show.find( "a", "sendung_title")
+		if (a):
+			title = a.strong.string
+			id = getIdFromUrl( a['href'])
+			videourl = getVideoForId( id)
+			thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "a").img['src'])
+		
+			addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( shows) + listed + alreadylisted)
+
+	# check for more 'history'
+	nexturl=None
+	baseurl = url.split('&page=', 1)[0]
+	pagination = soup.find( "p", "pagination")
+	if (pagination):
+		# check for next page
+		r = pagination.find( "a", "act")
+		if (r):
+			curpage = int(r.text)
+			numpages = len( pagination.findAll( "a")) - 1
+			print( "on page %d/%d" % (curpage, numpages))
+
+			if (curpage < numpages):
+				nexturl = baseurl + "&page=" + str( curpage+1)
+
+	if not nexturl:
+		nexturl = BASE_URL + soup.find( "div", "grey_box sendung_nav").find( "a")["href"]
+	
+	if (nexturl):
+		addDirectoryItem( ITEM_TYPE_FOLDER, "mehr...", {PARAMETER_KEY_URL: nexturl, PARAMETER_KEY_MODE: MODE_SENDUNG_PREV, "pos": len(listItems)+1})
+
+	# signal end of list
+	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True, updateListing=doAppend)
+
+	# scroll list to bottom and select first new element
+	if (selected):
+		window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
+		window.getControl(50).selectItem( len(listItems)+1)
+		window.getControl(50).selectItem( int(selected))
+
+	# store listed items
+	pickle.dump( listItems, file( LIST_FILE, "w"))
 
 
 #
@@ -149,24 +215,17 @@ def show_sendung( params):
 	a = show.find( "a", { "class": None})
 	title = a.string
 	id = getIdFromUrl( a['href'])
-	url = getVideoForId( id)
-	thumb = re.sub( '\?width=\d+', '?width=200', show.find( "a").img['src'])
-	addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb)
+	videourl = getVideoForId( id)
+	thumb = re.sub( '\?width=\\d+', '?width=200', show.find( "a").img['src'])
+	addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: videourl}, thumb)
 
 	# previous shows
-	previous = soup.find( "div", "prev_sendungen")
-	shows = previous.findAll( "div", "comment_row")
-	for show in shows:
-		a = show.find( "a", "sendung_title")
-		title = a.strong.string
-		id = getIdFromUrl( a['href'])
-		url = getVideoForId( id)
-		thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "a").img['src'])
-		
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( shows) + 1)
+	listed = list_prev_sendungen( url, soup, 1)
 
-	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
+def show_prev_sendung( params):
+	url = params.get( PARAMETER_KEY_URL)
+	soup = BeautifulSoup( getHttpResponse( url))
+	list_prev_sendungen( url, soup, selected=params.get( "pos"))
 
 def show_verpasst():
 	url = BASE_URL + "/verpasst"
@@ -210,6 +269,8 @@ elif mode == MODE_SENDUNGEN:
     ok = show_sendungen()
 elif mode == MODE_SENDUNG:
     ok = show_sendung(params)
+elif mode == MODE_SENDUNG_PREV:
+    ok = show_prev_sendung(params)
 elif mode == MODE_VERPASST:
     ok = show_verpasst()
 elif mode == MODE_VERPASST_DETAIL:
