@@ -1,5 +1,5 @@
 
-import os, re, sys
+import os, pickle, re, sys
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
 from BeautifulSoup import BeautifulSoup
@@ -66,21 +66,19 @@ def getIdFromUrl( url):
 	return re.compile( 'id=([0-9a-z\-]+)').findall( url)[0]
 
 
-def parseJSON( json):
-	streams = re.compile( '{"codec_video":"(.+?)".+?"bitrate":([0-9]+).+?"url":"(.+?)"}').findall( json)
-	sortedstreams = sorted( streams, key=lambda el: int(el[1]))
-	quality = int(settings.getSetting( "quality"))
-	if (quality >= len(sortedstreams)):
-		quality = len(sortedstreams)-1;
-	codec, bitrate, url = sortedstreams[ quality]
-	return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true";
-
-
 def getVideoForId( id):
-	json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
-	json = getHttpResponse( json_url)
+    json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
+    json = getHttpResponse( json_url)
 
-	return parseJSON( json)
+    streams = re.compile( '{"codec_video":"(.+?)".+?"bitrate":([0-9]+).+?"url":"(.+?)"}').findall( json)
+    sortedstreams = sorted( streams, key=lambda el: int(el[1]))
+
+    quality = int(settings.getSetting( "quality"))
+    if (quality >= len(sortedstreams)):
+        quality = len(sortedstreams)-1;
+    
+    codec, bitrate, url = sortedstreams[ quality]
+    return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true"
 
 
 def getThumbnailForId( id):
@@ -125,7 +123,6 @@ def getHttpResponse( url):
 	response.close()
 	return responsetext.encode("utf-8")
 
-import os, pickle
 
 def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
 	global listItems
@@ -196,15 +193,18 @@ def show_root_menu():
 
 
 def show_sendungen():
-	url = BASE_URL + "/sendungen"
-	html = getHttpResponse( url)
-	match = re.compile( '<img class="az_thumb" src=.+?alt="([^"]+?)" /></a>.+?href="(.+?)"').findall( html)
-	for name, url in match:
-		id = getIdFromUrl( url)
-		image = getThumbnailForId( id)
-		addDirectoryItem( ITEM_TYPE_FOLDER, name, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_URL: BASE_URL + url}, image)
+    url = BASE_URL + "/sendungen"
+    soup = BeautifulSoup( getHttpResponse( url))
+    
+    for show in soup.findAll( "div", "az_row"):
+        url = show.find( "a")['href']
+        title = show.find( "img", "az_thumb")['alt']
+    
+        id = getIdFromUrl( url)
+        image = getThumbnailForId( id)
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_URL: BASE_URL + url}, image)
 
-	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 def show_sendung( params):
 	url = params.get( PARAMETER_KEY_URL)
