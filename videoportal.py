@@ -13,7 +13,12 @@ from BeautifulSoup import BeautifulSoup
 pluginhandle = int(sys.argv[1])
 
 # plugin modes
-MODE_SENDUNGEN, MODE_SENDUNG, MODE_SENDUNG_PREV, MODE_VERPASST, MODE_VERPASST_DETAIL = range(5)
+MODE_SENDUNGEN       = "sendungen"
+MODE_SENDUNG         = "sendung"
+MODE_SENDUNG_PREV    = "sendung_prev"
+MODE_VERPASST        = "verpasst"
+MODE_VERPASST_DETAIL = "verpasst_detail"
+MODE_PLAY            = "play"
 
 # parameter keys
 PARAMETER_KEY_MODE = "mode"
@@ -91,25 +96,28 @@ def getThumbnailForId( id):
 	thumb = BASE_URL + "/cvis/videogroup/thumbnail/" + id + "?width=200"
 	return thumb
 
-def addDirectoryItem( type, name, parameters={}, image="", total=0):
-	'''Add a list item to the XBMC UI.'''
-	if (type == ITEM_TYPE_FOLDER):
-		img = "DefaultFolder.png"
-	elif (type == ITEM_TYPE_VIDEO):
-		img = "DefaultVideo.png"
+def addDirectoryItem( type, name, params={}, image="", total=0):
+    '''Add a list item to the XBMC UI.'''
+    if (type == ITEM_TYPE_FOLDER):
+        img = "DefaultFolder.png"
+    elif (type == ITEM_TYPE_VIDEO):
+        img = "DefaultVideo.png"
 
-	li = xbmcgui.ListItem( htmldecode( name), iconImage=img, thumbnailImage=image)
+    params[ PARAMETER_KEY_TITLE] = name
+    li = xbmcgui.ListItem( name, iconImage=img, thumbnailImage=image)
             
-	if (type == ITEM_TYPE_VIDEO):
-		li.setProperty( "IsPlayable", "true")
-		li.setProperty( "Video", "true")
-		url = parameters["url"]
-		global listItems
-		listItems.append( (name, parameters, image))
-	else:        
-		url = sys.argv[0] + '?' + urllib.urlencode(parameters)
+    if (type == ITEM_TYPE_VIDEO):
+#        li.setProperty( "IsPlayable", "true")
+        li.setProperty( "Video", "true")
+        global listItems
+        listItems.append( (name, params, image))
     
-	return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder = (type == ITEM_TYPE_FOLDER), totalItems=total)
+    params_encoded = dict()
+    for k in params.keys():
+        params_encoded[k] = params[k].encode( "utf-8")
+    url = sys.argv[0] + '?' + urllib.urlencode( params_encoded)
+    
+    return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder = (type == ITEM_TYPE_FOLDER), totalItems=total)
 
 
 #
@@ -117,74 +125,76 @@ def addDirectoryItem( type, name, parameters={}, image="", total=0):
 ############################################
 
 def getHttpResponse( url):
-	log_notice("getHttpResponse from " + url)
-	hdrs = {
-		"User-Agent": "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3",
-	}
+    log_notice("getHttpResponse from " + url)
+    hdrs = {
+        "User-Agent": "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3",
+    }
 
-	req = urllib2.Request( url, headers=hdrs)
-	response = urllib2.urlopen( req)
-	encoding = re.findall("charset=([a-zA-Z0-9\-]+)", response.headers['content-type'])
-	responsetext = unicode( response.read(), encoding[0] );
-	response.close()
-	return responsetext.encode("utf-8")
+    req = urllib2.Request( url, headers=hdrs)
+    response = urllib2.urlopen( req)
+    encoding = re.findall("charset=([a-zA-Z0-9\-]+)", response.headers['content-type'])
+    text = response.read()
+    responsetext = unicode( text, encoding[0] );
+    response.close()
+#    return responsetext.encode("utf-8")
+    return responsetext
 
 
 def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
-	global listItems
-	doAppend = (alreadylisted==0)
-	listed=0;
-	if doAppend:
-		items=pickle.load( file( LIST_FILE, "r"))
-		for item in items:
-			title, params, thumb = item
-			addDirectoryItem( ITEM_TYPE_VIDEO, title, params, thumb)
-			listed = listed+1
+    print "url: %s" % url
+    global listItems
+    doAppend = (alreadylisted==0)
+    listed=0;
+    if doAppend:
+        items=pickle.load( file( LIST_FILE, "r"))
+        for item in items:
+            title, params, thumb = item
+            addDirectoryItem( ITEM_TYPE_VIDEO, title, params, thumb)
+            listed = listed+1
 
-	previous = soup.find( "div", "prev_sendungen")
-	shows = previous.findAll( "div", "comment_row")
-	for show in shows:
-		a = show.find( "a", "sendung_title")
-		if (a):
-			title = a.strong.string
-			id = getIdFromUrl( a['href'])
-			videourl = getVideoForId( id)
-			thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "a").img['src'])
-		
-			addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( shows) + listed + alreadylisted)
+    previous = soup.find( "div", "prev_sendungen")
+    shows = previous.findAll( "div", "comment_row")
+    for show in shows:
+        a = show.find( "a", "sendung_title")
+        if (a):
+            title = a.strong.string
+            id = getIdFromUrl( a['href'])
+            thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "a").img['src'])
 
-	# check for more 'history'
-	nexturl=None
-	baseurl = url.split('&page=', 1)[0]
-	pagination = soup.find( "p", "pagination")
-	if (pagination):
+            addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb, len( shows) + listed + alreadylisted)
+
+    # check for more 'history'
+    nexturl=None
+    baseurl = url.split('&page=', 1)[0]
+    pagination = soup.find( "p", "pagination")
+    if (pagination):
 		# check for next page
-		r = pagination.find( "a", "act")
-		if (r):
-			curpage = int(r.text)
-			numpages = len( pagination.findAll( "a")) - 1
-			print( "on page %d/%d" % (curpage, numpages))
+        r = pagination.find( "a", "act")
+        if (r):
+            curpage = int(r.text)
+            numpages = len( pagination.findAll( "a")) - 1
+            print( "on page %d/%d" % (curpage, numpages))
 
-			if (curpage < numpages):
-				nexturl = baseurl + "&page=" + str( curpage+1)
+            if (curpage < numpages):
+                nexturl = baseurl + "&page=" + str( curpage+1)
 
-	if not nexturl:
-		nexturl = BASE_URL + soup.find( "div", "grey_box sendung_nav").find( "a")["href"]
+    if not nexturl:
+        nexturl = BASE_URL + soup.find( "div", "grey_box sendung_nav").find( "a")["href"]
 	
-	if (nexturl):
-		addDirectoryItem( ITEM_TYPE_FOLDER, "mehr...", {PARAMETER_KEY_URL: nexturl, PARAMETER_KEY_MODE: MODE_SENDUNG_PREV, "pos": len(listItems)+1})
+    if (nexturl):
+		addDirectoryItem( ITEM_TYPE_FOLDER, "mehr...", {PARAMETER_KEY_URL: nexturl, PARAMETER_KEY_MODE: MODE_SENDUNG_PREV, PARAMETER_KEY_POS: str( len(listItems)+1)})
 
-	# signal end of list
-	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True, updateListing=doAppend)
+    # signal end of list
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True, updateListing=doAppend)
 
-	# scroll list to bottom and select first new element
-	if (selected):
-		window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
-		window.getControl(50).selectItem( len(listItems)+1)
-		window.getControl(50).selectItem( int(selected))
+    # scroll list to bottom and select first new element
+    if (selected):
+        window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
+        window.getControl(50).selectItem( len(listItems)+1)
+        window.getControl(50).selectItem( int(selected))
 
-	# store listed items
-	pickle.dump( listItems, file( LIST_FILE, "w"))
+    # store listed items
+    pickle.dump( listItems, file( LIST_FILE, "w"))
 
 
 #
@@ -205,7 +215,6 @@ def show_sendungen():
     for show in soup.findAll( "div", "az_row"):
         url = show.find( "a")['href']
         title = show.find( "img", "az_thumb")['alt']
-    
         id = getIdFromUrl( url)
         image = getThumbnailForId( id)
         addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_URL: BASE_URL + url}, image)
@@ -221,9 +230,8 @@ def show_sendung( params):
 	a = show.find( "a", { "class": None})
 	title = a.string
 	id = getIdFromUrl( a['href'])
-	videourl = getVideoForId( id)
 	thumb = re.sub( '\?width=\\d+', '?width=200', show.find( "a").img['src'])
-	addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: videourl}, thumb)
+	addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb)
 
 	# previous shows
 	listed = list_prev_sendungen( url, soup, 1)
@@ -252,9 +260,8 @@ def show_verpasst_detail( params):
 	for url, name, thumbid, time in match:
 		id = getIdFromUrl( url)
 		title = "%s, %s" % (time, name)
-		url = getVideoForId( id)
 		thumb = getThumbnailForId( thumbid)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_URL: url}, thumb, len( match))
+		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb, len( match))
 	
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
@@ -265,8 +272,8 @@ def show_verpasst_detail( params):
 
 # read parameters and mode
 params = parameters_string_to_dict(sys.argv[2])
-mode = int(params.get(PARAMETER_KEY_MODE, "0"))
 
+mode = params.get(PARAMETER_KEY_MODE, "0")
 # depending on the mode, call the appropriate function to build the UI.
 if not sys.argv[2]:
     # new start
@@ -281,4 +288,14 @@ elif mode == MODE_VERPASST:
     ok = show_verpasst()
 elif mode == MODE_VERPASST_DETAIL:
     ok = show_verpasst_detail(params)
-
+elif mode == MODE_PLAY:
+    id = params["id"]
+    json = getJSONForId( id)
+    url = getVideoFromJSON( json)
+    start = json["video"]["segments"][0]["mark_in"]
+    print start
+    li = xbmcgui.ListItem( params[ PARAMETER_KEY_TITLE])
+    li.setProperty( "IsPlayable", "true")
+    li.setProperty( "Video", "true")
+    li.setProperty( "startOffset", "%f" % (start))
+    xbmc.Player().play( url, li)
