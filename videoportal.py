@@ -2,6 +2,7 @@
 import os, pickle, re, sys
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
+import simplejson
 from BeautifulSoup import BeautifulSoup
 
 #
@@ -16,7 +17,10 @@ MODE_SENDUNGEN, MODE_SENDUNG, MODE_SENDUNG_PREV, MODE_VERPASST, MODE_VERPASST_DE
 
 # parameter keys
 PARAMETER_KEY_MODE = "mode"
+PARAMETER_KEY_ID = "id"
 PARAMETER_KEY_URL = "url"
+PARAMETER_KEY_TITLE = "title"
+PARAMETER_KEY_POS   = "pos"
 
 ITEM_TYPE_FOLDER, ITEM_TYPE_VIDEO = range(2)
 BASE_URL = "http://www.videoportal.sf.tv"
@@ -66,19 +70,21 @@ def getIdFromUrl( url):
 	return re.compile( 'id=([0-9a-z\-]+)').findall( url)[0]
 
 
-def getVideoForId( id):
+def getJSONForId( id):
     json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
-    json = getHttpResponse( json_url)
+    json = simplejson.loads( getHttpResponse( json_url).split( "\n")[1])
+    return json
 
-    streams = re.compile( '{"codec_video":"(.+?)".+?"bitrate":([0-9]+).+?"url":"(.+?)"}').findall( json)
-    sortedstreams = sorted( streams, key=lambda el: int(el[1]))
+def getVideoFromJSON( json):
+    streams = json["streaming_urls"]
+    sortedstreams = sorted( streams, key=lambda el: int(el["bitrate"]))
 
     quality = int(settings.getSetting( "quality"))
     if (quality >= len(sortedstreams)):
         quality = len(sortedstreams)-1;
     
-    codec, bitrate, url = sortedstreams[ quality]
-    return url.replace("\\/", "/") + " swfurl=" + FLASH_PLAYER + " swfvfy=true"
+    return sortedstreams[ quality]["url"] + " swfvfy=true swfurl=" + FLASH_PLAYER
+
 
 
 def getThumbnailForId( id):
