@@ -2,3 +2,6 @@ version 0.1.0
 
   * initial release
 
+version 0.3.0
+
+  * first official release
