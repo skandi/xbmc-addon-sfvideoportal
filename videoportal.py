@@ -82,6 +82,7 @@ def addDirectoryItem( type, name, params={}, image="", total=0):
     elif (type == ITEM_TYPE_VIDEO):
         img = "DefaultVideo.png"
 
+    name = htmldecode( name)
     params[ PARAMETER_KEY_TITLE] = name
     li = xbmcgui.ListItem( name, iconImage=img, thumbnailImage=image)
             
