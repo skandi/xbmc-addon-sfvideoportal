@@ -4,10 +4,12 @@ import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
 import simplejson
 from BeautifulSoup import BeautifulSoup
+from AddonStats import AddonStats
 
 #
 # constants definition
 ############################################
+PLUGINID = "plugin.video.sf-videoportal"
 
 # plugin handle
 pluginhandle = int(sys.argv[1])
@@ -31,7 +33,7 @@ ITEM_TYPE_FOLDER, ITEM_TYPE_VIDEO = range(2)
 BASE_URL = "http://www.videoportal.sf.tv"
 FLASH_PLAYER = "http://www.videoportal.sf.tv/flash/videoplayer.swf"
 
-settings = xbmcaddon.Addon( id="plugin.video.sf-videoportal")
+settings = xbmcaddon.Addon( id=PLUGINID)
 
 LIST_FILE = os.path.join( os.getcwd(), "resources", "list.dat")
 listItems = []
@@ -56,9 +58,11 @@ def parameters_string_to_dict( parameters):
 				paramDict[paramSplits[0]] = urllib.unquote( paramSplits[1])
 	return paramDict
 
+
 entitydict = { "E4": u"\xE4", "F6": u"\xF6", "FC": u"\xFC",
                "C4": u"\xE4", "D6": u"\xF6", "DC": u"\xDC",
                "2013": u"\u2013"}
+
 def htmldecode( s):
 	try:
 		h = HTMLParser.HTMLParser()
@@ -70,31 +74,6 @@ def htmldecode( s):
 		
 	return s
 
-
-def getIdFromUrl( url):
-	return re.compile( 'id=([0-9a-z\-]+)').findall( url)[0]
-
-
-def getJSONForId( id):
-    json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
-    json = simplejson.loads( getHttpResponse( json_url).split( "\n")[1])
-    return json
-
-def getVideoFromJSON( json):
-    streams = json["streaming_urls"]
-    sortedstreams = sorted( streams, key=lambda el: int(el["bitrate"]))
-
-    quality = int(settings.getSetting( "quality"))
-    if (quality >= len(sortedstreams)):
-        quality = len(sortedstreams)-1;
-    
-    return sortedstreams[ quality]["url"] + " swfvfy=true swfurl=" + FLASH_PLAYER
-
-
-
-def getThumbnailForId( id):
-	thumb = BASE_URL + "/cvis/videogroup/thumbnail/" + id + "?width=200"
-	return thumb
 
 def addDirectoryItem( type, name, params={}, image="", total=0):
     '''Add a list item to the XBMC UI.'''
@@ -118,6 +97,54 @@ def addDirectoryItem( type, name, params={}, image="", total=0):
     url = sys.argv[0] + '?' + urllib.urlencode( params_encoded)
     
     return xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=li, isFolder = (type == ITEM_TYPE_FOLDER), totalItems=total)
+
+
+def doLog( params):
+    stats = AddonStats( PLUGINID, "http://www.mindmade.org/~andi/research/python/server.py")
+
+    fromAddonInfo = ( "stars", "version")
+    fromParams = ( PARAMETER_KEY_MODE, PARAMETER_KEY_URL, PARAMETER_KEY_ID)
+
+    log = dict()
+    for k in fromAddonInfo:
+        log[k]   = settings.getAddonInfo( k)
+    print params
+    for k in fromParams:
+        if k in params.keys():
+            log[k]   = params[k]
+    
+    stats.log( log)
+
+
+#
+# parsing functions
+############################################
+
+def getIdFromUrl( url):
+	return re.compile( 'id=([0-9a-z\-]+)').findall( url)[0]
+
+
+def getJSONForId( id):
+    json_url = BASE_URL + "/cvis/segment/" + id + "/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1"
+    json = simplejson.loads( getHttpResponse( json_url).split( "\n")[1])
+    return json
+
+
+def getVideoFromJSON( json):
+    streams = json["streaming_urls"]
+    sortedstreams = sorted( streams, key=lambda el: int(el["bitrate"]))
+
+    quality = int(settings.getSetting( id="quality"))
+    if (quality >= len(sortedstreams)):
+        quality = len(sortedstreams)-1;
+    
+    return sortedstreams[ quality]["url"] + " swfvfy=true swfurl=" + FLASH_PLAYER
+
+
+
+def getThumbnailForId( id):
+	thumb = BASE_URL + "/cvis/videogroup/thumbnail/" + id + "?width=200"
+	return thumb
 
 
 #
@@ -273,7 +300,10 @@ def show_verpasst_detail( params):
 # read parameters and mode
 params = parameters_string_to_dict(sys.argv[2])
 
+doLog( params)
+
 mode = params.get(PARAMETER_KEY_MODE, "0")
+
 # depending on the mode, call the appropriate function to build the UI.
 if not sys.argv[2]:
     # new start
