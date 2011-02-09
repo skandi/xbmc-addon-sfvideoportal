@@ -1,5 +1,5 @@
 
-import os, pickle, re, sys
+import os, re, sys
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
 import simplejson
@@ -146,7 +146,7 @@ def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
     doAppend = (alreadylisted==0)
     listed=0;
     if doAppend:
-        items=pickle.load( file( LIST_FILE, "r"))
+        items=simplejson.load( file( LIST_FILE, "r"))
         for item in items:
             title, params, thumb = item
             addDirectoryItem( ITEM_TYPE_VIDEO, title, params, thumb)
@@ -194,7 +194,7 @@ def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
         window.getControl(50).selectItem( int(selected))
 
     # store listed items
-    pickle.dump( listItems, file( LIST_FILE, "w"))
+    simplejson.dump( listItems, file( LIST_FILE, "w"))
 
 
 #
