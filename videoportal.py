@@ -20,6 +20,8 @@ MODE_SENDUNG         = "sendung"
 MODE_SENDUNG_PREV    = "sendung_prev"
 MODE_VERPASST        = "verpasst"
 MODE_VERPASST_DETAIL = "verpasst_detail"
+MODE_CHANNEL_LIST    = "channel_list"
+MODE_CHANNEL         = "channel"
 MODE_PLAY            = "play"
 
 # parameter keys
@@ -232,7 +234,7 @@ def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
 def show_root_menu():
 	addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen", {PARAMETER_KEY_MODE: MODE_SENDUNGEN})
 	addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_VERPASST})
-#	addDirectoryItem( ITEM_TYPE_FOLDER, "Channels", {PARAMETER_KEY_MODE: MODE_CHANNELS})
+	addDirectoryItem( ITEM_TYPE_FOLDER, "Channels", {PARAMETER_KEY_MODE: MODE_CHANNEL_LIST})
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
@@ -294,6 +296,31 @@ def show_verpasst_detail( params):
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
+def show_channel_list():
+	url = BASE_URL + "/channels"
+	soup = BeautifulSoup( getHttpResponse( url))
+	channels = soup.findAll( "h2", "hidden")
+	for ch in channels:
+		title = re.sub( "Channel\s+Channel", "Channel", ch.string)
+		link = BASE_URL + ch.parent.find( "a")["href"]
+		thumb = BASE_URL + ch.parent.find( "img")["src"]
+		addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_CHANNEL, PARAMETER_KEY_URL: link}, thumb, len( channels))
+	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+
+
+def show_channel( params):
+	url = params.get( PARAMETER_KEY_URL)
+	soup = BeautifulSoup( getHttpResponse( url))
+	items = soup.find( "div", "scroll-pane").findAll( "div", "teaser_item")
+	for item in items:
+		a = item.findAll( "a")[1]
+		title = a.string
+		id = getIdFromUrl( a["href"])
+		thumb = re.sub( '\?width=\\d+', '?width=200', item.find( "img")["src"])
+		addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb, len( items))
+	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+		
+
 #
 # xbmc entry point
 ############################################
@@ -319,12 +346,19 @@ elif mode == MODE_VERPASST:
     ok = show_verpasst()
 elif mode == MODE_VERPASST_DETAIL:
     ok = show_verpasst_detail(params)
+elif mode == MODE_CHANNEL_LIST:
+	show_channel_list()
+elif mode == MODE_CHANNEL:
+	show_channel( params)
 elif mode == MODE_PLAY:
     id = params["id"]
     json = getJSONForId( id)
     url = getVideoFromJSON( json)
-    start = json["video"]["segments"][0]["mark_in"]
-    print start
+    if "mark_in" in json.keys( ):
+        start = json["mark_in"]
+    elif "mark_in" in json["video"]["segments"][0].keys():
+        start = json["video"]["segments"][0]["mark_in"]
+    else: start = 0
     li = xbmcgui.ListItem( params[ PARAMETER_KEY_TITLE])
     li.setProperty( "IsPlayable", "true")
     li.setProperty( "Video", "true")
