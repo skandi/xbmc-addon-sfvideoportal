@@ -16,6 +16,8 @@ pluginhandle = int(sys.argv[1])
 
 # plugin modes
 MODE_SENDUNGEN       = "sendungen"
+MODE_SENDUNGEN_ALLTOPICS = "sendungen_alltopics"
+MODE_SENDUNGEN_TOPIC = "sendungen_topic"
 MODE_SENDUNG         = "sendung"
 MODE_SENDUNG_PREV    = "sendung_prev"
 MODE_VERPASST        = "verpasst"
@@ -111,7 +113,6 @@ def doLog( params):
     log = dict()
     for k in fromAddonInfo:
         log[k]   = settings.getAddonInfo( k)
-    print params
     for k in fromParams:
         if k in params.keys():
             log[k]   = params[k]
@@ -233,6 +234,7 @@ def list_prev_sendungen( url, soup, alreadylisted=0, selected=0):
 
 def show_root_menu():
 	addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen", {PARAMETER_KEY_MODE: MODE_SENDUNGEN})
+	addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen nach Thema", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_ALLTOPICS})
 	addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_VERPASST})
 	addDirectoryItem( ITEM_TYPE_FOLDER, "Channels", {PARAMETER_KEY_MODE: MODE_CHANNEL_LIST})
 	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
@@ -250,6 +252,38 @@ def show_sendungen():
         addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_URL: BASE_URL + url}, image)
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+
+
+def show_sendungen_alltopics():
+    url = BASE_URL + "/sendungen?sort=topic"
+    soup = BeautifulSoup( getHttpResponse( url))
+
+    for topic in soup.findAll( "div", "grey_box"):
+        title = topic.find("h2").string
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNGEN_TOPIC, PARAMETER_KEY_ID: title})
+
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+
+
+def show_sendungen_topic( params):
+    url = BASE_URL + "/sendungen?sort=topic"
+    selected_topic = params.get( PARAMETER_KEY_ID)
+    soup = BeautifulSoup( getHttpResponse( url))
+
+    for topic in soup.findAll( "div", "az_unit"):
+        t = topic.find("h2").string
+        print t
+        if (t == selected_topic):
+            for show in topic.findAll( "div", "az_row"):
+                url = show.find( "a")['href']
+                title = show.find( "img", "az_thumb")['alt']
+                id = getIdFromUrl( url)
+                image = getThumbnailForId( id)
+                addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_URL: BASE_URL + url}, image)
+            break
+
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+
 
 def show_sendung( params):
 	url = params.get( PARAMETER_KEY_URL)
@@ -338,6 +372,10 @@ if not sys.argv[2]:
     ok = show_root_menu()
 elif mode == MODE_SENDUNGEN:
     ok = show_sendungen()
+elif mode == MODE_SENDUNGEN_ALLTOPICS:
+    ok = show_sendungen_alltopics()
+elif mode == MODE_SENDUNGEN_TOPIC:
+    ok = show_sendungen_topic( params)
 elif mode == MODE_SENDUNG:
     ok = show_sendung(params)
 elif mode == MODE_SENDUNG_PREV:
