@@ -306,28 +306,33 @@ def show_prev_sendung( params):
 	list_prev_sendungen( url, soup, selected=params.get( "pos"))
 
 def show_verpasst():
-	url = BASE_URL + "/verpasst"
-	html = getHttpResponse( url)
-	match = re.compile( '<a class="day_line.+?href="(.+?)"><span class="day_name">(.+?)</span><span class="day_date">(.+?)</span></a>').findall( html.replace( "\n", ""))
-	for url,name,date in match:
-		title = "%s, %s" % (date, name.strip())
-		addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_VERPASST_DETAIL, PARAMETER_KEY_URL: url})
+    url = BASE_URL + "/verpasst"
+    html = getHttpResponse( url)
+    match = re.compile( '<a class="day_line.+?href="(.+?)"><span class="day_name">(.+?)</span><span class="day_date">(.+?)</span></a>').findall( html.replace( "\n", ""))
+    for url,name,date in match:
+        title = "%s, %s" % (date, name.strip())
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_VERPASST_DETAIL, PARAMETER_KEY_URL: url})
 
-	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
 def show_verpasst_detail( params):
-	url = BASE_URL + "/verpasst" + params.get( PARAMETER_KEY_URL)
-	html = getHttpResponse( url)
-	dayonly = re.compile( 'class="sendungen_missed_column">(.*?)</div></div></div></div>').findall( html)[0]
-	match = re.compile( '<div class="sendung_item"><a href="([^"]+?)" class="sen.+?" title="([^"]+?)" src=.+?videogroup/thumbnail/([0-9a-z\-]+)\?width.+?class="time">(.+?)</p>').findall( dayonly)
-	for url, name, thumbid, time in match:
-		id = getIdFromUrl( url)
-		title = "%s, %s" % (time, name)
-		thumb = getThumbnailForId( thumbid)
-		addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb, len( match))
-	
-	xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+    url = BASE_URL + "/verpasst" + params.get( PARAMETER_KEY_URL)
+    soup = BeautifulSoup( getHttpResponse( url))
+    day = soup.find( "div", "sendungen_missed_column")
+    if "inact" in day["class"]:
+        day = soup.findAll( "div", "sendungen_missed_column")[1]
+    shows =  day.findAll( "div", "sendung_item")
+    for show in shows:
+        url = show.find( "a")["href"]
+        name = show.find( "img")["title"]
+        thumb = re.sub( '\?width=[0-9]+', '?width=200', show.find( "img")["src"])
+        time = show.find( "p", "time").string
+        id = getIdFromUrl( url)
+        title = "%s, %s" % (time, name)
+        addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, thumb, len( shows))
+
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
 def show_channel_list():
