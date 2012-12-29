@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.sf-videoportal"
-       name="SF Videoportal"
-       version="0.5.0"
+       name="SRF Videoportal"
+       version="0.6.0"
        provider-name="Andreas Wetzel [xbmc@mindmade.org]">
   <requires>
     <import addon="xbmc.python" version="1.0"/>
@@ -15,10 +15,9 @@
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
-    <summary>SF Videoportal</summary>
+    <summary>SRF Videoportal</summary>
     <description>
-        This plug-in allows access to the content of the SF Videoportal (http://videoportal.sf.tv/).
-        Many of the productions in German of the Swiss national TV station are available.
+      This plug-in allows access to the content of the SRF Videoportal (http://http://www.srf.ch/player/tv).
     </description>
   </extension>
 </addon>

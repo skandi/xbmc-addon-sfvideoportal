@@ -1,10 +1,17 @@
 
 import os, re, sys
+from datetime import date, timedelta
 import urllib, urllib2, HTMLParser
 import xbmcgui, xbmcplugin, xbmcaddon
 from mindmade import *
 import simplejson
 from BeautifulSoup import BeautifulSoup
+
+__author__     = "Andreas Wetzel"
+__copyright__  = "Copyright 2011, 2012, mindmade.org"
+__credits__    = [ "Francois Marbot" ]
+__maintainer__ = "Andreas Wetzel"
+__email__      = "xbmc@mindmade.org"
 
 #
 # constants definition
@@ -15,20 +22,20 @@ PLUGINID = "plugin.video.sf-videoportal"
 pluginhandle = int(sys.argv[1])
 
 # plugin modes
-MODE_SENDUNGEN       = "sendungen"
-MODE_SENDUNGEN_ALLTOPICS = "sendungen_alltopics"
-MODE_SENDUNGEN_TOPIC = "sendungen_topic"
-MODE_SENDUNG         = "sendung"
-MODE_VERPASST        = "verpasst"
-MODE_VERPASST_DETAIL = "verpasst_detail"
-MODE_CHANNEL_LIST    = "channel_list"
-MODE_CHANNEL         = "channel"
-MODE_PLAY            = "play"
+MODE_SENDUNGEN_AZ     = "sendungen_az"
+MODE_SENDUNGEN_THEMEN = "sendungen_themen"
+MODE_SENDUNGEN_THEMA  = "sendungen_thema"
+MODE_SENDUNG          = "sendung"
+MODE_SENDUNG_VERPASST = "sendung_verpasst"
+MODE_VERPASST_DETAIL  = "verpasst_detail"
+MODE_THEMEN           = "themen"
+MODE_THEMA            = "thema"
+MODE_PLAY             = "play"
 
 # parameter keys
-PARAMETER_KEY_MODE = "mode"
-PARAMETER_KEY_ID = "id"
-PARAMETER_KEY_URL = "url"
+PARAMETER_KEY_MODE  = "mode"
+PARAMETER_KEY_ID    = "id"
+PARAMETER_KEY_URL   = "url"
 PARAMETER_KEY_TITLE = "title"
 PARAMETER_KEY_POS   = "pos"
 
@@ -146,14 +153,14 @@ def getThumbnailForId( id):
 ############################################
 
 def show_root_menu():
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen", {PARAMETER_KEY_MODE: MODE_SENDUNGEN})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Themen", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_ALLTOPICS})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_VERPASST})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Channels", {PARAMETER_KEY_MODE: MODE_CHANNEL_LIST})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen A-Z", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_AZ})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen nach Thema", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_THEMEN})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_SENDUNG_VERPASST})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Themen", {PARAMETER_KEY_MODE: MODE_THEMEN})
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_sendungen():
+def show_sendungen_abisz():
     url = BASE_URL_PLAYER + "/sendungen"
     soup = BeautifulSoup( fetchHttp( url))
     
@@ -167,7 +174,7 @@ def show_sendungen():
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_sendungen_alltopics():
+def show_sendungen_thematisch():
     url = BASE_URL_PLAYER + "/sendungen"
     soup = BeautifulSoup( fetchHttp( url, {"sort": "topic"}))
 
@@ -176,12 +183,12 @@ def show_sendungen_alltopics():
         title = topic.text
         onClick = topic['onclick']
         id = re.compile( '(az_unit_[a-zA-Z0-9_]*)').findall(onClick)[0]
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNGEN_TOPIC, PARAMETER_KEY_ID: id})
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNGEN_THEMA, PARAMETER_KEY_ID: id})
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_sendungen_topic( params):
+def show_sendungen_thema( params):
     selected_topic = params.get( PARAMETER_KEY_ID)
     url = BASE_URL_PLAYER + "/sendungen"
     soup = BeautifulSoup( fetchHttp( url, {"sort": "topic"}))
@@ -217,14 +224,20 @@ def show_sendung( params):
 def show_verpasst():
     url = BASE_URL_PLAYER + "/verpasst"
 
-    timestamp = 999999999999 # very high to get today.
-    for x in range(0, 7):
+    timestamp = params.get( PARAMETER_KEY_POS)
+    if not timestamp:
+        # get srf's timestamp for "now"
+        timestamp = 999999999999 # very high to get today.
         soup = BeautifulSoup( fetchHttp( url, { "date": timestamp}))
         rightDay = soup.find( "div", { "id": "right_day"})
-        title = rightDay.find( "h2").text
         timestamp = long(rightDay.find( "input", "timestamp")['value'])
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_VERPASST_DETAIL, PARAMETER_KEY_POS: str(timestamp)})
-        timestamp = (timestamp - (24*60*60))
+
+    day = date.fromtimestamp( timestamp)
+
+    for x in range(0, 12):
+        title = day.strftime( "%A, %d. %B %Y")
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_VERPASST_DETAIL, PARAMETER_KEY_POS: day.strftime( "%s")})
+        day = day - timedelta( days=1)
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
@@ -247,18 +260,18 @@ def show_verpasst_detail( params):
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_channel_list():
+def show_themen():
     url = BASE_URL_PLAYER + "/themen"
     soup = BeautifulSoup( fetchHttp( url))
 
     for topic in soup.findAll( "div", "themen_metadata"):
         title = topic.find("h2").string
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_CHANNEL, PARAMETER_KEY_ID: title})
+        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_THEMA, PARAMETER_KEY_ID: title})
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_channel( params):
+def show_thema( params):
     selected_topic = params.get( PARAMETER_KEY_ID)
     url = BASE_URL_PLAYER + "/thema/" + selected_topic
     soup = BeautifulSoup( fetchHttp( url, {"cid": selected_topic}))
@@ -288,22 +301,22 @@ mode = params.get(PARAMETER_KEY_MODE, "0")
 if not sys.argv[2]:
     # new start
     ok = show_root_menu()
-elif mode == MODE_SENDUNGEN:
-    ok = show_sendungen()
-elif mode == MODE_SENDUNGEN_ALLTOPICS:
-    ok = show_sendungen_alltopics()
-elif mode == MODE_SENDUNGEN_TOPIC:
-    ok = show_sendungen_topic( params)
+elif mode == MODE_SENDUNGEN_AZ:
+    ok = show_sendungen_abisz()
+elif mode == MODE_SENDUNGEN_THEMEN:
+    ok = show_sendungen_thematisch()
+elif mode == MODE_SENDUNGEN_THEMA:
+    ok = show_sendungen_thema( params)
 elif mode == MODE_SENDUNG:
     ok = show_sendung(params)
-elif mode == MODE_VERPASST:
+elif mode == MODE_SENDUNG_VERPASST:
     ok = show_verpasst()
 elif mode == MODE_VERPASST_DETAIL:
     ok = show_verpasst_detail(params)
-elif mode == MODE_CHANNEL_LIST:
-    show_channel_list()
-elif mode == MODE_CHANNEL:
-    show_channel( params)
+elif mode == MODE_THEMEN:
+    show_themen()
+elif mode == MODE_THEMA:
+    show_thema( params)
 elif mode == MODE_PLAY:
     id = params["id"]
     json = getJSONForId( id)

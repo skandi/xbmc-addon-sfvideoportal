@@ -1,4 +1,9 @@
 
+version 0.6.0
+  * adapted html parsing to new srf website
+    (patch by francois marbot, thank you!)
+  * minor improvements
+
 version 0.5.0
 
   * removed calls to obsolete xbmc.output() function.
