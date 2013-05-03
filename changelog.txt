@@ -1,4 +1,8 @@
 
+version 0.6.1
+  * removed entry "Themen" from main menu
+  * applied fixes for new website from francois
+
 version 0.6.0
   * adapted html parsing to new srf website
     (patch by francois marbot, thank you!)
