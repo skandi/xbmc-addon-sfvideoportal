@@ -156,7 +156,6 @@ def show_root_menu():
     addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen A-Z", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_AZ})
     addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen nach Thema", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_THEMEN})
     addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_SENDUNG_VERPASST})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Themen", {PARAMETER_KEY_MODE: MODE_THEMEN})
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
@@ -260,32 +259,6 @@ def show_verpasst_detail( params):
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_themen():
-    url = BASE_URL_PLAYER + "/themen"
-    soup = BeautifulSoup( fetchHttp( url))
-
-    for topic in soup.findAll( "div", "themen_metadata"):
-        title = topic.find("h2").string
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_THEMA, PARAMETER_KEY_ID: title})
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
-
-def show_thema( params):
-    selected_topic = params.get( PARAMETER_KEY_ID)
-    url = BASE_URL_PLAYER + "/thema/" + selected_topic
-    soup = BeautifulSoup( fetchHttp( url, {"cid": selected_topic}))
-
-    for show in soup.findAll( "div", "sendung_box_item"):
-        url = show.find( "a")['href']
-        title = show.find( "div", "title").text
-        id = getIdFromUrl( url)
-        image = getUrlWithoutParams(show.find( "img")['src'])
-        addDirectoryItem( ITEM_TYPE_VIDEO, title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id}, image)
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-        
-
 #
 # xbmc entry point
 ############################################
@@ -313,10 +286,6 @@ elif mode == MODE_SENDUNG_VERPASST:
     ok = show_verpasst()
 elif mode == MODE_VERPASST_DETAIL:
     ok = show_verpasst_detail(params)
-elif mode == MODE_THEMEN:
-    show_themen()
-elif mode == MODE_THEMA:
-    show_thema( params)
 elif mode == MODE_PLAY:
     id = params["id"]
     json = getJSONForId( id)
