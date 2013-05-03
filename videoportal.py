@@ -163,7 +163,7 @@ def show_sendungen_abisz():
     url = BASE_URL_PLAYER + "/sendungen"
     soup = BeautifulSoup( fetchHttp( url))
     
-    for show in soup.findAll( "div", "az_item"):
+    for show in soup.findAll( "li", "az_item"):
         url = show.find( "a")['href']
         title = show.find( "img", "az_thumb")['alt']
         id = getIdFromUrl( url)
@@ -174,11 +174,11 @@ def show_sendungen_abisz():
 
 
 def show_sendungen_thematisch():
-    url = BASE_URL_PLAYER + "/sendungen"
+    url = BASE_URL_PLAYER + "/sendungen-nach-thema"
     soup = BeautifulSoup( fetchHttp( url, {"sort": "topic"}))
 
-    topicNavigation = soup.find( "div", {"id": "topic_navigation"})
-    for topic in topicNavigation.findAll( "span"):
+    topicNavigation = soup.find( "ul", {"id": "topic_navigation"})
+    for topic in topicNavigation.findAll( "li"):
         title = topic.text
         onClick = topic['onclick']
         id = re.compile( '(az_unit_[a-zA-Z0-9_]*)').findall(onClick)[0]
@@ -189,11 +189,11 @@ def show_sendungen_thematisch():
 
 def show_sendungen_thema( params):
     selected_topic = params.get( PARAMETER_KEY_ID)
-    url = BASE_URL_PLAYER + "/sendungen"
-    soup = BeautifulSoup( fetchHttp( url, {"sort": "topic"}))
+    url = BASE_URL_PLAYER + "/sendungen-nach-thema"
+    soup = BeautifulSoup( fetchHttp( url , {"sort" : "topic"}))
 
-    topic = soup.find( "div", { "id" : selected_topic})
-    for show in topic.findAll( "div", "az_item"):
+    topic = soup.find( "li", {"id" : selected_topic})
+    for show in topic.findAll( "li", "az_item"):
         url = show.find( "a")['href']
         title = show.find( "img", "az_thumb")['alt']
         id = getIdFromUrl( url)
@@ -209,8 +209,8 @@ def show_sendung( params):
     url = BASE_URL + getUrlWithoutParams( urlParam)
     soup = BeautifulSoup( fetchHttp( url, {"id": sendid}))
 
-    for show in soup.findAll( "div", "sendung_item"):
-        title = show.find( "div", "title").text
+    for show in soup.findAll( "li", "sendung_item"):
+        title = show.find( "h2", "title").text
         titleDate = show.find( "div", "title_date").text
         image = getUrlWithoutParams( show.find( "img")['src'])
         a = show.find( "a")
@@ -221,7 +221,7 @@ def show_sendung( params):
 
 
 def show_verpasst():
-    url = BASE_URL_PLAYER + "/verpasst"
+    url = BASE_URL_PLAYER + "/sendungen-nach-datum"
 
     timestamp = params.get( PARAMETER_KEY_POS)
     if not timestamp:
@@ -242,7 +242,7 @@ def show_verpasst():
 
 
 def show_verpasst_detail( params):
-    url = BASE_URL_PLAYER + "/verpasst"
+    url = BASE_URL_PLAYER + "/sendungen-nach-datum"
     timestamp = params.get( PARAMETER_KEY_POS)
     soup = BeautifulSoup( fetchHttp( url, { "date": timestamp}))
     
@@ -252,7 +252,7 @@ def show_verpasst_detail( params):
         title = show.find( "a", "title").text
         time = show.find( "p", "time").text
         image = getUrlWithoutParams( show.find( "img")['src'])
-        a = show.find( "a")
+        a = show.find("div", "sendung_item").find( "a")
         id = getIdFromUrl( a['href'])
         addDirectoryItem( ITEM_TYPE_VIDEO, time + ": " + title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id }, image)
 
