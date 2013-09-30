@@ -210,7 +210,7 @@ def show_sendung( params):
     soup = BeautifulSoup( fetchHttp( url, {"id": sendid}))
 
     for show in soup.findAll( "li", "sendung_item"):
-        title = show.find( "h2", "title").text
+        title = show.find( "h3", "title").text
         titleDate = show.find( "div", "title_date").text
         image = getUrlWithoutParams( show.find( "img")['src'])
         a = show.find( "a")
