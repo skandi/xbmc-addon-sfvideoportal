@@ -1,4 +1,11 @@
 
+version 0.7.0
+  * switched to HDS streams
+  * changed video configuration options to SD/HD
+
+version 0.6.2
+  * minor fix for new website
+
 version 0.6.1
   * removed entry "Themen" from main menu
   * applied fixes for new website from francois
