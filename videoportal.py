@@ -23,13 +23,7 @@ pluginhandle = int(sys.argv[1])
 
 # plugin modes
 MODE_SENDUNGEN_AZ     = "sendungen_az"
-MODE_SENDUNGEN_THEMEN = "sendungen_themen"
-MODE_SENDUNGEN_THEMA  = "sendungen_thema"
 MODE_SENDUNG          = "sendung"
-MODE_SENDUNG_VERPASST = "sendung_verpasst"
-MODE_VERPASST_DETAIL  = "verpasst_detail"
-MODE_THEMEN           = "themen"
-MODE_THEMA            = "thema"
 MODE_PLAY             = "play"
 
 # parameter keys
@@ -153,8 +147,6 @@ def getThumbnailForId( id):
 
 def show_root_menu():
     addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen A-Z", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_AZ})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen nach Thema", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_THEMEN})
-    addDirectoryItem( ITEM_TYPE_FOLDER, "Sendung verpasst?", {PARAMETER_KEY_MODE: MODE_SENDUNG_VERPASST})
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
@@ -163,36 +155,6 @@ def show_sendungen_abisz():
     soup = BeautifulSoup( fetchHttp( url))
     
     for show in soup.findAll( "li", "az_item"):
-        url = show.find( "a")['href']
-        title = show.find( "img", "az_thumb")['alt']
-        id = getIdFromUrl( url)
-        image = getThumbnailForId( id)
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_ID: id, PARAMETER_KEY_URL: url }, image)
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
-
-def show_sendungen_thematisch():
-    url = BASE_URL_PLAYER + "/sendungen-nach-thema"
-    soup = BeautifulSoup( fetchHttp( url, {"sort": "topic"}))
-
-    topicNavigation = soup.find( "ul", {"id": "topic_navigation"})
-    for topic in topicNavigation.findAll( "li"):
-        title = topic.text
-        onClick = topic['onclick']
-        id = re.compile( '(az_unit_[a-zA-Z0-9_]*)').findall(onClick)[0]
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNGEN_THEMA, PARAMETER_KEY_ID: id})
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
-
-def show_sendungen_thema( params):
-    selected_topic = params.get( PARAMETER_KEY_ID)
-    url = BASE_URL_PLAYER + "/sendungen-nach-thema"
-    soup = BeautifulSoup( fetchHttp( url , {"sort" : "topic"}))
-
-    topic = soup.find( "li", {"id" : selected_topic})
-    for show in topic.findAll( "li", "az_item"):
         url = show.find( "a")['href']
         title = show.find( "img", "az_thumb")['alt']
         id = getIdFromUrl( url)
@@ -219,45 +181,6 @@ def show_sendung( params):
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
-def show_verpasst():
-    url = BASE_URL_PLAYER + "/sendungen-nach-datum"
-
-    timestamp = params.get( PARAMETER_KEY_POS)
-    if not timestamp:
-        # get srf's timestamp for "now"
-        timestamp = 999999999999 # very high to get today.
-        soup = BeautifulSoup( fetchHttp( url, { "date": timestamp}))
-        rightDay = soup.find( "div", { "id": "right_day"})
-        timestamp = long(rightDay.find( "input", "timestamp")['value'])
-
-    day = date.fromtimestamp( timestamp)
-
-    for x in range(0, 12):
-        title = day.strftime( "%A, %d. %B %Y")
-        addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_VERPASST_DETAIL, PARAMETER_KEY_POS: day.strftime( "%s")})
-        day = day - timedelta( days=1)
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
-
-def show_verpasst_detail( params):
-    url = BASE_URL_PLAYER + "/sendungen-nach-datum"
-    timestamp = params.get( PARAMETER_KEY_POS)
-    soup = BeautifulSoup( fetchHttp( url, { "date": timestamp}))
-    
-    rightDay = soup.find( "div", { "id": "right_day"})
-    
-    for show in rightDay.findAll( "div", "overlay_sendung_item"):
-        title = show.find( "a", "title").text
-        time = show.find( "p", "time").text
-        image = getUrlWithoutParams( show.find( "img")['src'])
-        a = show.find("div", "sendung_item").find( "a")
-        id = getIdFromUrl( a['href'])
-        addDirectoryItem( ITEM_TYPE_VIDEO, time + ": " + title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id }, image)
-
-    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
-
-
 #
 # xbmc entry point
 ############################################
@@ -275,16 +198,8 @@ if not sys.argv[2]:
     ok = show_root_menu()
 elif mode == MODE_SENDUNGEN_AZ:
     ok = show_sendungen_abisz()
-elif mode == MODE_SENDUNGEN_THEMEN:
-    ok = show_sendungen_thematisch()
-elif mode == MODE_SENDUNGEN_THEMA:
-    ok = show_sendungen_thema( params)
 elif mode == MODE_SENDUNG:
     ok = show_sendung(params)
-elif mode == MODE_SENDUNG_VERPASST:
-    ok = show_verpasst()
-elif mode == MODE_VERPASST_DETAIL:
-    ok = show_verpasst_detail(params)
 elif mode == MODE_PLAY:
     id = params["id"]
     json = getJSONForId( id)
