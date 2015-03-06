@@ -22,9 +22,13 @@ PLUGINID = "plugin.video.sf-videoportal"
 pluginhandle = int(sys.argv[1])
 
 # plugin modes
-MODE_SENDUNGEN_AZ     = "sendungen_az"
-MODE_SENDUNG          = "sendung"
-MODE_PLAY             = "play"
+MODE_SENDUNGEN_AZ         = "sendungen_az"
+MODE_SENDUNGEN_MOSTVIEWED = "mostviewed"
+MODE_SENDUNGEN_LATEST     = "latest"
+MODE_SENDUNGEN_LAST24H    = "last24h"
+MODE_SENDUNGEN_THEMA      = "sendungen_thema"
+MODE_SENDUNG              = "sendung"
+MODE_PLAY                 = "play"
 
 # parameter keys
 PARAMETER_KEY_MODE  = "mode"
@@ -147,6 +151,9 @@ def getThumbnailForId( id):
 
 def show_root_menu():
     addDirectoryItem( ITEM_TYPE_FOLDER, "Sendungen A-Z", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_AZ})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Meistgesehen", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_MOSTVIEWED})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "Die neuesten Videos", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_LATEST})
+    addDirectoryItem( ITEM_TYPE_FOLDER, "TV-Sendungen der letzten 24 Stunden", {PARAMETER_KEY_MODE: MODE_SENDUNGEN_LAST24H})
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
 
@@ -160,6 +167,21 @@ def show_sendungen_abisz():
         id = getIdFromUrl( url)
         image = getThumbnailForId( id)
         addDirectoryItem( ITEM_TYPE_FOLDER, title, {PARAMETER_KEY_MODE: MODE_SENDUNG, PARAMETER_KEY_ID: id, PARAMETER_KEY_URL: url }, image)
+
+    xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
+
+
+def show_sendungen_dynamic(location):
+    url = BASE_URL_PLAYER + "carouselvideosajax/" + location
+    soup = BeautifulSoup( fetchHttp( url, {"count": 25, "mode": "tabcontainer"}))
+
+    for show in soup.findAll( "div", "carousel_item"):
+        title = show.find( "a", "headline").text
+        show_title = show.find( "div", "show").find( "a").text
+        image = getUrlWithoutParams( show.find( "img")['src'])
+        a = show.findAll( "a")[1]
+        id = getIdFromUrl( a['href'])
+        addDirectoryItem( ITEM_TYPE_VIDEO, title + " - " + show_title, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id }, image)
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
@@ -198,6 +220,12 @@ if not sys.argv[2]:
     ok = show_root_menu()
 elif mode == MODE_SENDUNGEN_AZ:
     ok = show_sendungen_abisz()
+elif mode == MODE_SENDUNGEN_MOSTVIEWED:
+    ok = show_sendungen_dynamic(MODE_SENDUNGEN_MOSTVIEWED)
+elif mode == MODE_SENDUNGEN_LATEST:
+    ok = show_sendungen_dynamic(MODE_SENDUNGEN_LATEST)
+elif mode == MODE_SENDUNGEN_LAST24H:
+    ok = show_sendungen_dynamic(MODE_SENDUNGEN_LAST24H)
 elif mode == MODE_SENDUNG:
     ok = show_sendung(params)
 elif mode == MODE_PLAY:
