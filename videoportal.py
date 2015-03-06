@@ -35,7 +35,7 @@ PARAMETER_KEY_POS   = "pos"
 
 ITEM_TYPE_FOLDER, ITEM_TYPE_VIDEO = range(2)
 BASE_URL = "http://www.srf.ch/"
-BASE_URL_PLAYER = "http://www.srf.ch/player/tv"
+BASE_URL_PLAYER = "http://www.srf.ch/play/tv/"
 # for some reason, it only works with the old player version.
 FLASH_PLAYER = "http://www.videoportal.sf.tv/flash/videoplayer.swf"
 #FLASH_PLAYER = "http://www.srf.ch/player/tv/flash/videoplayer.swf"
@@ -167,16 +167,16 @@ def show_sendungen_abisz():
 def show_sendung( params):
     sendid = params.get( PARAMETER_KEY_ID)
     urlParam = params.get( PARAMETER_KEY_URL)
-    url = BASE_URL + getUrlWithoutParams( urlParam)
-    soup = BeautifulSoup( fetchHttp( url, {"id": sendid}))
+    url = BASE_URL_PLAYER + "episodesfromshow"
+    soup = BeautifulSoup( fetchHttp( url, {"id": sendid, "pageNumber": 1}))
 
     for show in soup.findAll( "li", "sendung_item"):
         title = show.find( "h3", "title").text
         titleDate = show.find( "div", "title_date").text
         image = getUrlWithoutParams( show.find( "img")['src'])
-        a = show.find( "a")
+        a = show.findAll( "a")[1]
         id = getIdFromUrl( a['href'])
-        addDirectoryItem( ITEM_TYPE_VIDEO, title + " " + titleDate, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id }, image)
+        addDirectoryItem( ITEM_TYPE_VIDEO, title + " - " + titleDate, {PARAMETER_KEY_MODE: MODE_PLAY, PARAMETER_KEY_ID: id }, image)
 
     xbmcplugin.endOfDirectory(handle=pluginhandle, succeeded=True)
 
