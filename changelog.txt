@@ -1,3 +1,7 @@
+version 0.7.2
+  * fixes for new srf play website
+    (patch provided by christian hitz, thank you!)
+
 version 0.7.1
   * adapted dependencies for xbmc 13
 
